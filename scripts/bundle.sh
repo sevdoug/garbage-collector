@@ -1,6 +1,6 @@
 #!/bin/bash
-# Compila em release e monta "dist/Garbage Collector.app".
-# Uso: scripts/bundle.sh [--install]   (--install copia para /Applications)
+# Builds in release mode and assembles "dist/Garbage Collector.app".
+# Usage: scripts/bundle.sh [--install]   (--install copies it to /Applications)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -15,11 +15,11 @@ swift build -c release
 BIN="$(swift build -c release --show-bin-path)/$EXECUTABLE"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/pt-BR.lproj"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/$EXECUTABLE"
-if [ -f "Resources/AppIcon.icns" ]; then
-  cp "Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-fi
+cp "Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# The UI strings in the code are English; each .lproj holds one translation.
+cp -R Resources/*.lproj "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -34,28 +34,28 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
-  <key>CFBundleDevelopmentRegion</key><string>pt-BR</string>
-  <key>CFBundleLocalizations</key><array><string>pt-BR</string></array>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>pt-BR</string></array>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSDesktopFolderUsageDescription</key><string>Para medir quanto espaço a Mesa ocupa.</string>
-  <key>NSDocumentsFolderUsageDescription</key><string>Para medir quanto espaço a pasta Documentos ocupa.</string>
-  <key>NSDownloadsFolderUsageDescription</key><string>Para medir quanto espaço a pasta Downloads ocupa.</string>
-  <key>NSRemovableVolumesUsageDescription</key><string>Para medir o espaço ocupado em volumes externos.</string>
-  <key>NSNetworkVolumesUsageDescription</key><string>Para medir o espaço ocupado em volumes de rede.</string>
+  <key>NSDesktopFolderUsageDescription</key><string>To measure how much space the Desktop takes up.</string>
+  <key>NSDocumentsFolderUsageDescription</key><string>To measure how much space the Documents folder takes up.</string>
+  <key>NSDownloadsFolderUsageDescription</key><string>To measure how much space the Downloads folder takes up.</string>
+  <key>NSRemovableVolumesUsageDescription</key><string>To measure the space used on external volumes.</string>
+  <key>NSNetworkVolumesUsageDescription</key><string>To measure the space used on network volumes.</string>
 </dict>
 </plist>
 PLIST
 
-# Assinatura ad-hoc: suficiente para rodar localmente. O macOS amarra permissões de privacidade
-# a essa assinatura, então um novo build pode pedir o Acesso Total ao Disco de novo.
+# Ad-hoc signature: enough to run locally. macOS ties privacy permissions to this signature,
+# so a new build may ask for Full Disk Access again.
 codesign --force --sign - --identifier "$BUNDLE_ID" "$APP"
 
-echo "Pronto: $APP"
+echo "Done: $APP"
 
 if [ "${1:-}" = "--install" ]; then
   rm -rf "/Applications/$APP_NAME.app"
   cp -R "$APP" "/Applications/$APP_NAME.app"
-  echo "Instalado em /Applications/$APP_NAME.app"
+  echo "Installed at /Applications/$APP_NAME.app"
 fi

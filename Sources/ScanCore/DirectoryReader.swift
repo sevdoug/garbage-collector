@@ -1,14 +1,14 @@
 import Darwin
 
-/// Leitura de baixo nível de uma pasta: `readdir` + `fstatat`, sem seguir links simbólicos.
+/// Low-level directory read: `readdir` + `fstatat`, without following symbolic links.
 enum DirectoryReader {
     enum Failure: Error {
         case permissionDenied
         case unreadable
     }
 
-    /// Bytes realmente alocados em disco (`st_blocks`), não o tamanho lógico.
-    /// Arquivos esparsos (ex.: Docker.raw) e arquivos só na nuvem mentem no tamanho lógico.
+    /// Bytes actually allocated on disk (`st_blocks`), not the logical size.
+    /// Sparse files (e.g. Docker.raw) and cloud-only files have a misleading logical size.
     @inline(__always)
     static func allocatedSize(_ st: stat) -> Int64 {
         Int64(st.st_blocks) * 512
@@ -19,14 +19,14 @@ enum DirectoryReader {
         st.st_mode & S_IFMT
     }
 
-    /// Pasta cujo conteúdo ainda não foi baixado (iCloud/CloudStorage). Listá-la forçaria o download.
+    /// Directory whose contents have not been downloaded yet (iCloud/CloudStorage). Listing it would force the download.
     @inline(__always)
     static func isDataless(_ st: stat) -> Bool {
         st.st_flags & UInt32(SF_DATALESS) != 0
     }
 
-    /// Chama `body` para cada entrada (exceto `.` e `..`) com o nome C e o resultado do `lstat`.
-    /// Entradas que somem entre o `readdir` e o `fstatat` são ignoradas.
+    /// Calls `body` for each entry (except `.` and `..`) with the C name and the `lstat` result.
+    /// Entries that vanish between the `readdir` and the `fstatat` are skipped.
     static func forEachEntry(
         atPath path: String,
         _ body: (_ name: UnsafePointer<CChar>, _ st: stat) -> Void
@@ -45,7 +45,7 @@ enum DirectoryReader {
         while let entry = readdir(dir) {
             let name = UnsafeRawPointer(entry).advanced(by: nameOffset)
                 .assumingMemoryBound(to: CChar.self)
-            // Pula "." e ".."
+            // Skip "." and ".."
             if name[0] == 46, name[1] == 0 || (name[1] == 46 && name[2] == 0) { continue }
             var st = stat()
             guard fstatat(fd, name, &st, AT_SYMLINK_NOFOLLOW) == 0 else { continue }

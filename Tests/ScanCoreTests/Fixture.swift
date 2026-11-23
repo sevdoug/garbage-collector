@@ -1,8 +1,8 @@
 import Darwin
 import Foundation
 
-/// Pasta temporária com casos difíceis para o scanner. Tudo é criado dentro de um diretório
-/// temporário exclusivo e apagado no `deinit`.
+/// Temporary directory with hard cases for the scanner. Everything is created inside a dedicated
+/// temporary directory and deleted in `deinit`.
 final class Fixture {
     let root: String
     static let megabyte = 1 << 20
@@ -11,12 +11,12 @@ final class Fixture {
         let base = FileManager.default.temporaryDirectory
             .appendingPathComponent("gc-fixture-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        // realpath: /var/folders/... é um symlink para /private/var/folders/...
+        // realpath: /var/folders/... is a symlink to /private/var/folders/...
         root = String(cString: realpath(base.path, nil))
     }
 
     deinit {
-        // Devolve a permissão de pastas bloqueadas pelos testes antes de apagar.
+        // Restore permissions on directories locked by the tests before deleting.
         if let enumerator = FileManager.default.enumerator(atPath: root) {
             for case let item as String in enumerator { chmod(root + "/" + item, 0o755) }
         }
@@ -29,7 +29,7 @@ final class Fixture {
         try FileManager.default.createDirectory(atPath: path(relative), withIntermediateDirectories: true)
     }
 
-    /// Arquivo com dados de verdade (não compressíveis nem esparsos), para o tamanho alocado ser previsível.
+    /// File with real data (neither compressible nor sparse), so the allocated size is predictable.
     func writeFile(_ relative: String, bytes: Int) throws {
         var data = Data(count: bytes)
         data.withUnsafeMutableBytes { buffer in
@@ -39,7 +39,7 @@ final class Fixture {
         try data.write(to: URL(fileURLWithPath: path(relative)))
     }
 
-    /// Arquivo esparso: tamanho lógico grande, quase nada alocado.
+    /// Sparse file: large logical size, almost nothing allocated.
     func writeSparseFile(_ relative: String, logicalBytes: Int) throws {
         let fd = open(path(relative), O_CREAT | O_WRONLY, 0o644)
         guard fd >= 0 else { throw CocoaError(.fileWriteUnknown) }
@@ -47,7 +47,7 @@ final class Fixture {
         guard ftruncate(fd, off_t(logicalBytes)) == 0 else { throw CocoaError(.fileWriteUnknown) }
     }
 
-    /// Tamanho segundo o `du -sk` (KiB alocados, hardlinks contados uma vez), em bytes.
+    /// Size according to `du -sk` (allocated KiB, hardlinks counted once), in bytes.
     func duBytes(_ relative: String = "") throws -> Int64 {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/du")

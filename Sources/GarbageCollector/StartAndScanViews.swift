@@ -1,7 +1,7 @@
 import ScanCore
 import SwiftUI
 
-/// Barra de ocupação do volume: usado × livre.
+/// Volume usage bar: used vs. free.
 struct VolumeBar: View {
     let volume: VolumeInfo
 
@@ -18,7 +18,7 @@ struct VolumeBar: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(volume.name).font(.headline)
                 Spacer()
-                Text("\(Format.bytes(volume.available)) livres de \(Format.bytes(volume.total))")
+                Text(String(localized: "\(Format.bytes(volume.available)) free of \(Format.bytes(volume.total))"))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -29,7 +29,7 @@ struct VolumeBar: View {
                 }
             }
             .frame(height: 8)
-            Text("\(Format.share(usedFraction)) ocupado")
+            Text(String(localized: "\(Format.share(usedFraction)) used"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -43,7 +43,7 @@ struct StartView: View {
         VStack(spacing: 28) {
             VStack(spacing: 6) {
                 Text("Garbage Collector").font(.largeTitle.weight(.semibold))
-                Text("Veja o que está ocupando o disco e mande o que não presta para a Lixeira.")
+                Text("See what is taking up your disk and send the junk to the Trash.")
                     .foregroundStyle(.secondary)
             }
             if let volume = model.volume {
@@ -52,24 +52,24 @@ struct StartView: View {
             HStack(spacing: 14) {
                 ScanChoice(
                     symbol: "house",
-                    title: "Pasta pessoal",
-                    detail: "Downloads, caches, projetos… onde o lixo costuma estar.",
+                    title: "Home Folder",
+                    detail: "Downloads, caches, projects… where the junk usually lives.",
                     action: model.scanHome
                 )
                 ScanChoice(
                     symbol: "internaldrive",
-                    title: "Disco inteiro",
-                    detail: "Tudo, inclusive apps e pastas do sistema. Mais demorado.",
+                    title: "Whole Disk",
+                    detail: "Everything, including apps and system folders. Takes longer.",
                     action: model.scanWholeDisk
                 )
                 ScanChoice(
                     symbol: "folder.badge.gearshape",
-                    title: "Escolher pasta…",
-                    detail: "Analisa só a pasta que você indicar.",
+                    title: "Choose Folder…",
+                    detail: "Analyzes only the folder you pick.",
                     action: model.chooseFolderAndScan
                 )
             }
-            Text("Nada é apagado sem você confirmar, e tudo vai para a Lixeira — dá para desfazer.")
+            Text("Nothing is deleted without your confirmation, and everything goes to the Trash — you can undo it.")
                 .font(.callout)
                 .foregroundStyle(.tertiary)
         }
@@ -80,8 +80,8 @@ struct StartView: View {
 
 private struct ScanChoice: View {
     let symbol: String
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
     let action: () -> Void
     @State private var hovering = false
 
@@ -119,17 +119,17 @@ struct ScanningView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            Text("Escaneando \(model.scanningPath)")
+            Text(String(localized: "Scanning \(model.scanningPath)"))
                 .font(.title2.weight(.semibold))
                 .lineLimit(1)
                 .truncationMode(.middle)
             ProgressView().progressViewStyle(.linear).frame(maxWidth: 420)
             HStack(spacing: 28) {
-                Metric(value: Format.bytes(model.progress.bytes), label: "encontrados")
-                Metric(value: Format.count(model.progress.files), label: "arquivos")
-                Metric(value: Format.count(model.progress.directories), label: "pastas")
+                Metric(value: Format.bytes(model.progress.bytes), label: "found")
+                Metric(value: Format.count(model.progress.files), label: "files")
+                Metric(value: Format.count(model.progress.directories), label: "folders")
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Metric(value: elapsed(until: context.date), label: "tempo")
+                    Metric(value: elapsed(until: context.date), label: "elapsed")
                 }
             }
             Text(VolumePaths.userFacing(model.progress.currentPath))
@@ -138,7 +138,7 @@ struct ScanningView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: 560)
-            Button("Cancelar", role: .cancel) { model.cancelScan() }
+            Button("Cancel", role: .cancel) { model.cancelScan() }
                 .keyboardShortcut(.cancelAction)
         }
         .padding(40)
@@ -153,7 +153,7 @@ struct ScanningView: View {
 
 private struct Metric: View {
     let value: String
-    let label: String
+    let label: LocalizedStringKey
 
     var body: some View {
         VStack(spacing: 2) {

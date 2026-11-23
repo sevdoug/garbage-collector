@@ -1,4 +1,4 @@
-/// Retângulo independente de framework de UI.
+/// Rectangle independent of any UI framework.
 public struct TreemapRect: Sendable, Equatable {
     public var x: Double
     public var y: Double
@@ -24,11 +24,11 @@ public struct TreemapRect: Sendable, Equatable {
 }
 
 public enum Treemap {
-    /// Treemap "squarified" (Bruls, Huizing, van Wijk): divide `rect` em áreas proporcionais
-    /// aos pesos, mantendo os retângulos o mais próximos possível de quadrados.
+    /// "Squarified" treemap (Bruls, Huizing, van Wijk): splits `rect` into areas proportional
+    /// to the weights, keeping the rectangles as close to squares as possible.
     ///
-    /// `weights` deve vir em ordem decrescente. O resultado tem um retângulo por peso, na mesma
-    /// ordem; pesos não positivos recebem um retângulo de área zero.
+    /// `weights` must come in descending order. The result has one rectangle per weight, in the same
+    /// order; non-positive weights get a zero-area rectangle.
     public static func squarify(weights: [Double], in rect: TreemapRect) -> [TreemapRect] {
         var result = [TreemapRect](repeating: TreemapRect(x: rect.x, y: rect.y, width: 0, height: 0), count: weights.count)
         let total = weights.reduce(0) { $0 + max(0, $1) }
@@ -43,7 +43,7 @@ public enum Treemap {
             let side = min(free.width, free.height)
             guard side > 0 else { break }
 
-            // Cresce a fileira enquanto a pior proporção não piorar.
+            // Grow the row as long as the worst aspect ratio does not get worse.
             var rowEnd = rowStart + 1
             var rowSum = areas[rowStart]
             var worst = worstRatio(sum: rowSum, largest: areas[rowStart], smallest: areas[rowStart], side: side)
@@ -56,7 +56,7 @@ public enum Treemap {
                 rowEnd += 1
             }
 
-            // A fileira ocupa uma faixa ao longo do lado menor do espaço livre.
+            // The row takes up a strip along the shorter side of the free space.
             let thickness = rowSum / side
             var offset = 0.0
             for index in rowStart..<rowEnd {

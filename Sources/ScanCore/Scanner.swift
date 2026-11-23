@@ -3,16 +3,16 @@ import Foundation
 import os
 
 public struct ScanOptions: Sendable {
-    /// Arquivos menores que isso não viram nós individuais: são somados em um agregado por pasta.
-    /// É o que mantém a memória sob controle em discos com milhões de arquivos.
+    /// Files smaller than this do not become individual nodes: they are summed into one aggregate per directory.
+    /// This is what keeps memory under control on disks with millions of files.
     public var smallFileThreshold: Int64
     public var workerCount: Int
-    /// Quantos problemas (pastas ilegíveis etc.) guardar com caminho; o total é sempre contado.
+    /// How many issues (unreadable directories etc.) to keep with their path; the total is always counted.
     public var maxRecordedIssues: Int
 
     public init(
         smallFileThreshold: Int64 = 1 << 20,
-        // Medido: acima de ~4–6 threads o kernel vira o gargalo e o tempo para de cair.
+        // Measured: above ~4–6 threads the kernel becomes the bottleneck and the time stops dropping.
         workerCount: Int = min(6, max(2, ProcessInfo.processInfo.activeProcessorCount)),
         maxRecordedIssues: Int = 2000
     ) {
@@ -22,7 +22,7 @@ public struct ScanOptions: Sendable {
     }
 }
 
-/// Contadores de progresso, seguros para ler de qualquer thread enquanto o scan roda.
+/// Progress counters, safe to read from any thread while the scan runs.
 public final class ScanProgress: Sendable {
     public struct Snapshot: Sendable {
         public var files = 0
@@ -60,7 +60,7 @@ public struct ScanIssue: Sendable, Identifiable {
 
 public struct ScanResult: Sendable {
     public let root: FileNode
-    /// Amostra dos problemas encontrados (limitada por `ScanOptions.maxRecordedIssues`).
+    /// Sample of the issues found (capped by `ScanOptions.maxRecordedIssues`).
     public let issues: [ScanIssue]
     public let issueCount: Int
     public let directoryCount: Int
@@ -75,14 +75,14 @@ public enum ScanError: Error, Equatable {
 }
 
 public enum Scanner {
-    /// Percorre `path` e devolve a árvore com tamanhos agregados. Bloqueia até terminar:
-    /// chame fora da thread principal.
+    /// Walks `path` and returns the tree with aggregated sizes. Blocks until done:
+    /// call it off the main thread.
     ///
-    /// Regras de contagem (as mesmas do `du`):
-    /// - tamanho alocado em disco, não o lógico;
-    /// - hardlinks contam uma vez só (o primeiro caminho encontrado leva o tamanho);
-    /// - links simbólicos nunca são seguidos;
-    /// - não atravessa para outros volumes nem lista pastas que só existem na nuvem.
+    /// Counting rules (the same as `du`):
+    /// - size allocated on disk, not the logical size;
+    /// - hardlinks count only once (the first path found gets the size);
+    /// - symbolic links are never followed;
+    /// - does not cross into other volumes or list directories that exist only in the cloud.
     public static func scan(
         path: String,
         options: ScanOptions = ScanOptions(),
@@ -129,10 +129,10 @@ public enum Scanner {
         )
     }
 
-    /// Soma tamanhos e contagens de baixo para cima e ordena os filhos. Devolve o total de pastas.
+    /// Sums sizes and counts bottom-up and sorts the children. Returns the total number of directories.
     private static func aggregate(_ root: FileNode) -> Int {
-        // Ordem em largura: todo pai aparece antes dos filhos; percorrendo ao contrário,
-        // cada pasta já encontra os filhos totalizados. Sem recursão (árvores podem ser fundas).
+        // Breadth-first order: every parent appears before its children; walking it in reverse,
+        // each directory finds its children already totaled. No recursion (trees can be deep).
         var directories: [FileNode] = [root]
         var index = 0
         while index < directories.count {
@@ -142,7 +142,7 @@ public enum Scanner {
             index += 1
         }
         for directory in directories.reversed() {
-            var size = directory.size // começa com os blocos da própria pasta
+            var size = directory.size // starts with the directory's own blocks
             var count = 0
             for child in directory.children {
                 size += child.size
@@ -156,7 +156,7 @@ public enum Scanner {
     }
 }
 
-// MARK: - Sessão de scan
+// MARK: - Scan session
 
 private struct Work {
     let node: FileNode
@@ -168,8 +168,8 @@ private struct FileID: Hashable {
     let inode: ino_t
 }
 
-/// Pilha compartilhada de pastas pendentes. O scan termina quando a pilha esvazia
-/// e nenhuma thread está no meio de uma pasta (que ainda poderia empilhar subpastas).
+/// Shared stack of pending directories. The scan ends when the stack is empty
+/// and no thread is in the middle of a directory (which could still push subdirectories).
 private final class WorkQueue: @unchecked Sendable {
     private let condition = NSCondition()
     private var stack: [Work] = []
@@ -228,7 +228,7 @@ private final class Session: @unchecked Sendable {
     }
 
     func runWorker() {
-        // Defesa extra: nesta thread, nunca dispare o download de itens que só existem na nuvem.
+        // Extra safeguard: on this thread, never trigger the download of items that exist only in the cloud.
         setiopolicy_np(
             IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES,
             IOPOL_SCOPE_THREAD,
@@ -252,7 +252,7 @@ private final class Session: @unchecked Sendable {
         }
     }
 
-    /// Lê uma pasta, cria os nós filhos e devolve as subpastas a percorrer.
+    /// Reads a directory, creates the child nodes, and returns the subdirectories to traverse.
     private func process(_ work: Work) -> [Work] {
         let prefix = work.path.hasSuffix("/") ? work.path : work.path + "/"
         let threshold = options.smallFileThreshold
@@ -274,7 +274,7 @@ private final class Session: @unchecked Sendable {
                     children.append(child)
                     let childPath = prefix + name
                     if st.st_dev != rootDevice {
-                        // Ponto de montagem: o conteúdo pertence a outro volume.
+                        // Mount point: the contents belong to another volume.
                         mark(child, .otherVolume, path: childPath)
                     } else if DirectoryReader.isDataless(st) {
                         mark(child, .cloudOnly, path: childPath)

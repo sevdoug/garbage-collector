@@ -1,0 +1,5 @@
+"NSDesktopFolderUsageDescription" = "Para medir quanto espaço a Mesa ocupa.";
+"NSDocumentsFolderUsageDescription" = "Para medir quanto espaço a pasta Documentos ocupa.";
+"NSDownloadsFolderUsageDescription" = "Para medir quanto espaço a pasta Downloads ocupa.";
+"NSRemovableVolumesUsageDescription" = "Para medir o espaço ocupado em volumes externos.";
+"NSNetworkVolumesUsageDescription" = "Para medir o espaço ocupado em volumes de rede.";

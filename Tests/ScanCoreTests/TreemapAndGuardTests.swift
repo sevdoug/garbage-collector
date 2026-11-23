@@ -28,7 +28,7 @@ import Testing
                 let a = rects[i], b = rects[j]
                 let overlapX = min(a.x + a.width, b.x + b.width) - max(a.x, b.x)
                 let overlapY = min(a.y + a.height, b.y + b.height) - max(a.y, b.y)
-                #expect(overlapX <= 1e-6 || overlapY <= 1e-6, "retângulos \(i) e \(j) se sobrepõem")
+                #expect(overlapX <= 1e-6 || overlapY <= 1e-6, "rectangles \(i) and \(j) overlap")
             }
         }
     }
@@ -85,6 +85,20 @@ import Testing
         #expect(!isDenied(path))
     }
 
+    @Test func reportsWhyAPathWasDenied() {
+        func reason(_ path: String) -> TrashGuard.Verdict { TrashGuard.evaluate(path: path, home: home) }
+        #expect(reason("relative/path") == .denied(.invalidPath))
+        #expect(reason("/Applications") == .denied(.topLevelFolder))
+        #expect(reason("/Users/ana") == .denied(.homeOrAncestor))
+        #expect(reason("/Users/bia") == .denied(.userHome))
+        #expect(reason("/Volumes/Backup") == .denied(.volumeRoot))
+        #expect(reason("/usr/bin/zip") == .denied(.systemFolder))
+        #expect(reason("/Library/Caches") == .denied(.systemLibraryFolder))
+        #expect(reason("/Users/ana/.Trash/old.zip") == .denied(.alreadyInTrash))
+        #expect(reason("/Users/ana/Documents") == .denied(.standardHomeFolder))
+        #expect(reason("/Users/ana/Library/Caches") == .denied(.userLibraryFolder))
+    }
+
     @Test func normalization() {
         #expect(TrashGuard.normalize("/a/b/../c/./d/") == "/a/c/d")
         #expect(TrashGuard.normalize("/System/Volumes/Data/Users/x") == "/Users/x")
@@ -92,7 +106,7 @@ import Testing
         #expect(TrashGuard.normalize("/private/tmp/x") == "/private/tmp/x")
     }
 
-    // MARK: - Checagem contra o disco, na hora de mover
+    // MARK: - On-disk check, right before moving
 
     @Test func onDiskAllowsUnchangedPaths() throws {
         let fx = try Fixture()
@@ -102,8 +116,8 @@ import Testing
         #expect(TrashGuard.evaluateOnDisk(path: fx.path("a"), home: home) == .allowed)
     }
 
-    /// Depois do scan, a pasta "a" é trocada por um link para outro lugar: "a/file.bin" passa
-    /// a ser outro arquivo, e mover seria apagar o que o usuário não viu.
+    /// After the scan, folder "a" is replaced by a link to somewhere else: "a/file.bin" is now
+    /// a different file, and moving it would delete something the user never saw.
     @Test func onDiskRefusesWhenAParentBecameASymlink() throws {
         let fx = try Fixture()
         try fx.writeFile("a/file.bin", bytes: 10)
@@ -111,11 +125,11 @@ import Testing
         try FileManager.default.removeItem(atPath: fx.path("a"))
         #expect(symlink(fx.path("elsewhere"), fx.path("a")) == 0)
 
-        #expect(TrashGuard.evaluateOnDisk(path: fx.path("a/file.bin"), home: home) != .allowed)
+        #expect(TrashGuard.evaluateOnDisk(path: fx.path("a/file.bin"), home: home) == .denied(.pathChanged))
         #expect(TrashGuard.evaluateOnDisk(path: fx.path("a/deeper/../file.bin"), home: home) != .allowed)
     }
 
-    /// O link em si pode ir para a Lixeira: o que é movido é o link, não o destino.
+    /// The link itself may go to the Trash: what moves is the link, not its target.
     @Test func onDiskAllowsTrashingASymlinkItself() throws {
         let fx = try Fixture()
         try fx.writeFile("target/file.bin", bytes: 10)
@@ -124,18 +138,18 @@ import Testing
         #expect(TrashGuard.evaluateOnDisk(path: fx.path("link"), home: home) == .allowed)
     }
 
-    /// A regra vale para o lugar real: aqui a "pasta pessoal" é a própria pasta de teste.
+    /// The rules apply to the real location: here the "home folder" is the test folder itself.
     @Test func onDiskAppliesTheRulesToTheRealLocation() throws {
         let fx = try Fixture()
         try fx.makeDirectory("Documents/projeto")
 
-        #expect(TrashGuard.evaluateOnDisk(path: fx.path("Documents"), home: fx.root) != .allowed)
+        #expect(TrashGuard.evaluateOnDisk(path: fx.path("Documents"), home: fx.root) == .denied(.standardHomeFolder))
         #expect(TrashGuard.evaluateOnDisk(path: fx.path("Documents/projeto"), home: fx.root) == .allowed)
     }
 
     @Test func onDiskRefusesWhenTheParentIsGone() throws {
         let fx = try Fixture()
-        #expect(TrashGuard.evaluateOnDisk(path: fx.path("sumiu/file.bin"), home: home) != .allowed)
-        #expect(TrashGuard.evaluateOnDisk(path: "relativo/file.bin", home: home) != .allowed)
+        #expect(TrashGuard.evaluateOnDisk(path: fx.path("gone/file.bin"), home: home) == .denied(.parentMissing))
+        #expect(TrashGuard.evaluateOnDisk(path: "relative/file.bin", home: home) == .denied(.parentMissing))
     }
 }

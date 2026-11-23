@@ -1,24 +1,24 @@
 import Foundation
 
-/// Um item da árvore escaneada: pasta, arquivo grande ou um agregado de arquivos pequenos.
+/// An item in the scanned tree: a directory, a large file, or an aggregate of small files.
 ///
-/// Modelo de concorrência: durante o scan, cada nó é escrito por uma única thread de trabalho
-/// (a que processa a pasta dona dele). Depois que `Scanner.scan` retorna, a árvore só pode ser
-/// lida ou alterada a partir de um único contexto (no app, o MainActor). Por isso o
-/// `@unchecked Sendable`: a exclusão é garantida pelo protocolo de uso, não por locks.
+/// Concurrency model: during the scan, each node is written by a single worker thread
+/// (the one processing the directory that owns it). Once `Scanner.scan` returns, the tree may only
+/// be read or modified from a single context (in the app, the MainActor). Hence the
+/// `@unchecked Sendable`: exclusion is guaranteed by the usage protocol, not by locks.
 public final class FileNode: @unchecked Sendable, Identifiable {
     public enum Kind: UInt8, Sendable {
         case directory
         case file
         case symlink
         case other
-        /// Agregado dos arquivos abaixo do limite de tamanho; pode ser detalhado sob demanda.
+        /// Aggregate of the files below the size threshold; can be expanded on demand.
         case smallFiles
-        /// O que sobrou de um agregado depois de detalhado (não pode ser detalhado de novo).
+        /// What is left of an aggregate after it was expanded (cannot be expanded again).
         case remainder
     }
 
-    /// Motivo pelo qual uma pasta não foi percorrida.
+    /// Reason why a directory was not traversed.
     public enum Issue: UInt8, Sendable {
         case permissionDenied
         case unreadable
@@ -26,17 +26,17 @@ public final class FileNode: @unchecked Sendable, Identifiable {
         case cloudOnly
     }
 
-    /// Nome do item. Na raiz, é o caminho absoluto da pasta escaneada.
+    /// Item name. At the root, it is the absolute path of the scanned directory.
     public let name: String
     public let kind: Kind
-    /// `weak` de propósito: um nó guardado pela UI depois de removido da árvore degrada para um
-    /// caminho relativo (que a trava da Lixeira recusa) em vez de derrubar o app.
+    /// `weak` on purpose: a node held by the UI after being removed from the tree degrades to a
+    /// relative path (which the Trash guard rejects) instead of crashing the app.
     public internal(set) weak var parent: FileNode?
-    /// Bytes alocados em disco, incluindo todos os descendentes.
+    /// Bytes allocated on disk, including all descendants.
     public internal(set) var size: Int64
-    /// Filhos ordenados do maior para o menor.
+    /// Children sorted from largest to smallest.
     public internal(set) var children: [FileNode] = []
-    /// Quantidade de arquivos na subárvore (1 para arquivo, N para agregados).
+    /// Number of files in the subtree (1 for a file, N for aggregates).
     public internal(set) var fileCount: Int
     public internal(set) var issue: Issue?
 
@@ -50,7 +50,7 @@ public final class FileNode: @unchecked Sendable, Identifiable {
     public var isDirectory: Bool { kind == .directory }
     public var isAggregate: Bool { kind == .smallFiles || kind == .remainder }
 
-    /// Caminho absoluto. Agregados não existem no disco, então apontam para a pasta que os contém.
+    /// Absolute path. Aggregates do not exist on disk, so they point to the directory that contains them.
     public var path: String {
         var parts: [String] = []
         var node = self
@@ -67,14 +67,14 @@ public final class FileNode: @unchecked Sendable, Identifiable {
         return result
     }
 
-    /// Nome para exibição (na raiz, o último componente do caminho).
+    /// Display name (at the root, the last path component).
     public var displayName: String {
         guard parent == nil else { return name }
         if name == "/" { return "/" }
         return (name as NSString).lastPathComponent
     }
 
-    /// Cadeia da raiz até este nó, inclusive.
+    /// Chain from the root down to this node, inclusive.
     public var ancestry: [FileNode] {
         var chain: [FileNode] = [self]
         var node = self
@@ -97,7 +97,7 @@ public final class FileNode: @unchecked Sendable, Identifiable {
     static func sortBySize(_ nodes: inout [FileNode]) {
         nodes.sort { a, b in
             if a.size != b.size { return a.size > b.size }
-            // Agregados por último entre empates, para a lista ficar estável e previsível.
+            // Aggregates last among ties, so the list stays stable and predictable.
             if a.isAggregate != b.isAggregate { return !a.isAggregate }
             return a.name.localizedStandardCompare(b.name) == .orderedAscending
         }

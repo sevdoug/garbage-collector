@@ -1,6 +1,6 @@
 #!/bin/bash
-# Regera Resources/AppIcon.icns a partir de scripts/make-icon.swift.
-# Só é preciso rodar se o desenho do ícone mudar: o .icns fica versionado.
+# Regenerates Resources/AppIcon.icns from scripts/make-icon.swift.
+# Only needs to run if the icon design changes: the .icns is kept under version control.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -19,4 +19,4 @@ for size in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o Resources/AppIcon.icns
 
-echo "Pronto: Resources/AppIcon.icns"
+echo "Done: Resources/AppIcon.icns"

@@ -1,4 +1,4 @@
-// Gera o ícone do app (um treemap estilizado). Uso: scripts/make-icon.sh
+// Generates the app icon (a stylized treemap). Usage: scripts/make-icon.sh
 import AppKit
 
 let size: CGFloat = 1024
@@ -11,11 +11,11 @@ guard
         bytesPerRow: 0, bitsPerPixel: 0
     ),
     let context = NSGraphicsContext(bitmapImageRep: bitmap)
-else { fatalError("não foi possível criar o bitmap") }
+else { fatalError("could not create the bitmap") }
 
 NSGraphicsContext.current = context
 
-// Base no formato padrão de ícone do macOS (quadrado arredondado com margem).
+// Base in the standard macOS icon shape (rounded square with a margin).
 let plate = NSRect(x: 100, y: 100, width: 824, height: 824)
 let platePath = NSBezierPath(roundedRect: plate, xRadius: 185, yRadius: 185)
 NSGradient(colors: [
@@ -23,7 +23,7 @@ NSGradient(colors: [
     NSColor(calibratedWhite: 0.10, alpha: 1),
 ])!.draw(in: platePath, angle: -90)
 
-// Blocos em frações da área útil: (x, y, largura, altura, matiz, brilho).
+// Tiles as fractions of the usable area: (x, y, width, height, hue, brightness).
 let tiles: [(CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat)] = [
     (0.00, 0.42, 0.58, 0.58, 0.59, 0.86),
     (0.60, 0.62, 0.40, 0.38, 0.47, 0.84),

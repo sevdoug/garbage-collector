@@ -2,8 +2,8 @@ import AppKit
 import Observation
 import ScanCore
 
-/// Estado do app. A árvore (`FileNode`) não é observável: toda alteração nela incrementa
-/// `revision`, e as views que mostram a árvore leem `revision` para se redesenhar.
+/// App state. The tree (`FileNode`) is not observable: every change to it bumps `revision`,
+/// and the views that show the tree read `revision` so they redraw.
 @MainActor
 @Observable
 final class AppModel {
@@ -13,7 +13,7 @@ final class AppModel {
     struct TrashRequest: Identifiable {
         let id = UUID()
         let nodes: [FileNode]
-        /// Itens da seleção que a trava de segurança recusou, com o motivo.
+        /// Items of the selection the safety guard refused, with the reason.
         let blocked: [(name: String, reason: String)]
         var totalBytes: Int64 { nodes.reduce(0) { $0 + $1.size } }
     }
@@ -35,7 +35,7 @@ final class AppModel {
     private(set) var trashedBytes: Int64 = 0
     private(set) var trashedCount = 0
     private(set) var isTrashing = false
-    /// Item que a lista deve rolar até mostrar (seleção vinda do treemap ou de "Maiores arquivos").
+    /// Item the list should scroll into view (selection coming from the treemap or "Largest Files").
     private(set) var scrollTarget: FileNode.ID?
 
     var tab: Tab = .folders
@@ -52,7 +52,7 @@ final class AppModel {
         volume = VolumeInfo.forPath(NSHomeDirectory())
     }
 
-    // MARK: - Dados derivados
+    // MARK: - Derived data
 
     var root: FileNode? { result?.root }
 
@@ -66,7 +66,7 @@ final class AppModel {
         node.parent == nil ? rootLabel : node.name
     }
 
-    /// Caminho como o usuário conhece (sem o prefixo do volume de dados).
+    /// Path as the user knows it (without the data-volume prefix).
     func displayPath(_ node: FileNode) -> String {
         VolumePaths.userFacing(node.path)
     }
@@ -79,7 +79,7 @@ final class AppModel {
         return files
     }
 
-    /// Nós selecionados na aba visível.
+    /// Nodes selected in the visible tab.
     var selectedNodes: [FileNode] {
         switch tab {
         case .folders: (current?.children ?? []).filter { selection.contains($0.id) }
@@ -101,12 +101,12 @@ final class AppModel {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Escanear"
-        panel.message = "Escolha a pasta a analisar"
+        panel.prompt = String(localized: "Scan")
+        panel.message = String(localized: "Choose the folder to analyze")
         if panel.runModal() == .OK, let url = panel.url { startScan(path: url.path) }
     }
 
-    /// Escaneia a mesma raiz de novo e volta para a pasta em que você estava (se ainda existir).
+    /// Scans the same root again and returns to the folder you were in (if it still exists).
     func rescan() {
         guard let root else { return }
         let trail = (current?.ancestry ?? []).dropFirst().map(\.name)
@@ -134,7 +134,7 @@ final class AppModel {
                 let result = try await Task.detached(priority: .userInitiated) {
                     try Scanner.scan(path: path, progress: progress)
                 }.value
-                // Um scan mais novo pode ter começado enquanto este terminava.
+                // A newer scan may have started while this one was finishing.
                 guard activeProgress === progress else { return }
                 finishScan(result, returningTo: trail)
             } catch {
@@ -142,7 +142,7 @@ final class AppModel {
                 activeProgress = nil
                 phase = result == nil ? .start : .browsing
                 if let message = Self.describe(error, path: path) {
-                    notice = Notice(title: "Não foi possível escanear", message: message)
+                    notice = Notice(title: String(localized: "Could not scan"), message: message)
                 }
             }
         }
@@ -155,7 +155,7 @@ final class AppModel {
     private func finishScan(_ result: ScanResult, returningTo trail: [String]) {
         activeProgress = nil
         self.result = result
-        // Desce pela trilha de nomes até onde ela ainda existir na árvore nova.
+        // Walks down the trail of names as far as it still exists in the new tree.
         var landing = result.root
         for name in trail {
             guard let next = landing.children.first(where: { $0.name == name && canOpen($0) }) else { break }
@@ -175,14 +175,14 @@ final class AppModel {
     private static func describe(_ error: Error, path: String) -> String? {
         switch error as? ScanError {
         case .cancelled: nil
-        case .notFound: "A pasta \(path) não existe mais."
-        case .notADirectory: "\(path) não é uma pasta."
-        case .cannotRead: "Sem permissão para ler \(path). Veja se o app tem Acesso Total ao Disco nos Ajustes do Sistema."
+        case .notFound: String(localized: "The folder \(path) no longer exists.")
+        case .notADirectory: String(localized: "\(path) is not a folder.")
+        case .cannotRead: String(localized: "No permission to read \(path). Check whether the app has Full Disk Access in System Settings.")
         case nil: error.localizedDescription
         }
     }
 
-    // MARK: - Navegação
+    // MARK: - Navigation
 
     func canOpen(_ node: FileNode) -> Bool {
         node.isDirectory && node.issue == nil
@@ -205,7 +205,7 @@ final class AppModel {
 
     var canGoUp: Bool { tab == .folders && current?.parent != nil }
 
-    /// Seleciona um filho da pasta atual (clique no treemap).
+    /// Selects a child of the current folder (click on the treemap).
     func select(_ node: FileNode, extending: Bool) {
         if extending {
             if selection.contains(node.id) { selection.remove(node.id) } else { selection.insert(node.id) }
@@ -215,7 +215,7 @@ final class AppModel {
         scrollTarget = node.id
     }
 
-    /// Abre a pasta que contém `node` e deixa ele selecionado.
+    /// Opens the folder that contains `node` and leaves it selected.
     func showInFolder(_ node: FileNode) {
         guard let parent = node.parent else { return }
         current = parent
@@ -229,11 +229,11 @@ final class AppModel {
         if TreeEditor.expandSmallFiles(in: current) {
             revision += 1
         } else {
-            notice = Notice(title: "Não foi possível detalhar", message: "A pasta não pôde ser lida agora.")
+            notice = Notice(title: String(localized: "Could not expand"), message: String(localized: "The folder could not be read right now."))
         }
     }
 
-    // MARK: - Lixeira
+    // MARK: - Trash
 
     func requestTrashOfSelection() {
         requestTrash(selectedNodes)
@@ -245,13 +245,13 @@ final class AppModel {
         for node in nodes where !node.isAggregate {
             switch TrashGuard.evaluate(path: node.path) {
             case .allowed: allowed.append(node)
-            case .denied(let reason): blocked.append((label(for: node), reason))
+            case .denied(let reason): blocked.append((label(for: node), reason.message))
             }
         }
         if allowed.isEmpty {
             if !blocked.isEmpty {
                 notice = Notice(
-                    title: "Esses itens são protegidos",
+                    title: String(localized: "These items are protected"),
                     message: blocked.map { "• \($0.name): \($0.reason)" }.joined(separator: "\n")
                 )
             }
@@ -286,11 +286,11 @@ final class AppModel {
         revision += 1
 
         if !failures.isEmpty {
-            notice = Notice(title: "Alguns itens não foram movidos", message: failures.joined(separator: "\n"))
+            notice = Notice(title: String(localized: "Some items were not moved"), message: failures.joined(separator: "\n"))
         } else if vanished > 0 {
             notice = Notice(
-                title: "Itens já removidos",
-                message: "\(Format.items(vanished)) já não existia no disco e saiu da lista."
+                title: String(localized: "Items already removed"),
+                message: String(localized: "Already gone from disk and removed from the list: \(Format.items(vanished)).")
             )
         }
     }

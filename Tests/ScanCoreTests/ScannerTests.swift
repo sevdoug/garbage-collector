@@ -52,7 +52,7 @@ private func child(_ node: FileNode, _ name: String) -> FileNode? {
 
         let bucket = try #require(root.children.first { $0.kind == .smallFiles })
         #expect(bucket.fileCount == 10)
-        #expect(bucket.size == 10 * 8192) // 5000 bytes ocupam 2 blocos de 4 KiB
+        #expect(bucket.size == 10 * 8192) // 5000 bytes take up 2 blocks of 4 KiB
         #expect(root.children.count == 2)
         #expect(bucket.path == fx.root)
     }
@@ -66,7 +66,7 @@ private func child(_ node: FileNode, _ name: String) -> FileNode? {
 
         #expect(root.size < 2 * Int64(mb))
         #expect(root.size == (try fx.duBytes()))
-        #expect(child(root, "sparse.img") == nil) // alocado ~0: cai no agregado
+        #expect(child(root, "sparse.img") == nil) // ~0 allocated: falls into the aggregate
     }
 
     @Test func hardlinksAreCountedOnce() throws {
@@ -169,7 +169,7 @@ private func child(_ node: FileNode, _ name: String) -> FileNode? {
         #expect(root.size == (try fx.duBytes()))
     }
 
-    /// Muitas pastas com poucas threads e vice-versa: exercita a fila de trabalho.
+    /// Many directories with few threads and vice versa: exercises the work queue.
     @Test(arguments: [1, 2, 16]) func wideTreeWithDifferentWorkerCounts(workers: Int) throws {
         let fx = try Fixture()
         for a in 0..<12 {
@@ -204,7 +204,7 @@ private func child(_ node: FileNode, _ name: String) -> FileNode? {
         #expect(root.size == before.root - b.size)
         #expect(root.fileCount == before.files - 1)
         #expect(b.parent == nil)
-        // "a" encolheu e agora é menor que "z": a ordem dos irmãos é refeita.
+        // "a" shrank and is now smaller than "z": the sibling order is recomputed.
         #expect(root.children.map(\.name) == ["z", "a"])
     }
 
@@ -223,7 +223,7 @@ private func child(_ node: FileNode, _ name: String) -> FileNode? {
         #expect(remainder.fileCount == 2)
         #expect(root.children.reduce(Int64(0)) { $0 + $1.size } + 0 <= total)
         #expect(!root.children.contains { $0.kind == .smallFiles })
-        #expect(!TreeEditor.expandSmallFiles(in: root)) // nada mais a detalhar
+        #expect(!TreeEditor.expandSmallFiles(in: root)) // nothing left to expand
         #expect(child(root, "s6.txt")?.path == fx.path("s6.txt"))
     }
 

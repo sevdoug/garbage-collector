@@ -1,0 +1,119 @@
+/* Brazilian Portuguese. Keys are the English strings used in the code. */
+
+/* Counts */
+"1 file" = "1 arquivo";
+"%@ files" = "%@ arquivos";
+"1 item" = "1 item";
+"%@ items" = "%@ itens";
+"1 unreadable folder" = "1 pasta não lida";
+"%@ unreadable folders" = "%@ pastas não lidas";
+
+/* Start screen */
+"See what is taking up your disk and send the junk to the Trash." = "Veja o que está ocupando o disco e mande o que não presta para a Lixeira.";
+"%@ free of %@" = "%@ livres de %@";
+"%@ used" = "%@ ocupado";
+"Disk" = "Disco";
+"Home Folder" = "Pasta pessoal";
+"Downloads, caches, projects… where the junk usually lives." = "Downloads, caches, projetos… onde o lixo costuma estar.";
+"Whole Disk" = "Disco inteiro";
+"Everything, including apps and system folders. Takes longer." = "Tudo, inclusive apps e pastas do sistema. Mais demorado.";
+"Choose Folder…" = "Escolher pasta…";
+"Analyzes only the folder you pick." = "Analisa só a pasta que você indicar.";
+"Nothing is deleted without your confirmation, and everything goes to the Trash — you can undo it." = "Nada é apagado sem você confirmar, e tudo vai para a Lixeira — dá para desfazer.";
+"Scan" = "Escanear";
+"Choose the folder to analyze" = "Escolha a pasta a analisar";
+
+/* Scanning */
+"Scanning %@" = "Escaneando %@";
+"found" = "encontrados";
+"files" = "arquivos";
+"folders" = "pastas";
+"elapsed" = "tempo";
+"Cancel" = "Cancelar";
+"Could not scan" = "Não foi possível escanear";
+"The folder %@ no longer exists." = "A pasta %@ não existe mais.";
+"%@ is not a folder." = "%@ não é uma pasta.";
+"No permission to read %@. Check whether the app has Full Disk Access in System Settings." = "Sem permissão para ler %@. Veja se o app tem Acesso Total ao Disco nos Ajustes do Sistema.";
+
+/* Menus and toolbar */
+"Scan Home Folder" = "Escanear Pasta Pessoal";
+"Scan Whole Disk" = "Escanear Disco Inteiro";
+"Rescan" = "Escanear de novo";
+"Rescan (⌘R)" = "Escanear de novo (⌘R)";
+"Scan Somewhere Else" = "Escanear outro lugar";
+"Scan somewhere else" = "Escanear outro lugar";
+"Go" = "Navegar";
+"Enclosing Folder" = "Pasta acima";
+"Enclosing folder (⌘↑)" = "Pasta acima (⌘↑)";
+"View" = "Visão";
+"Folders" = "Pastas";
+"Largest Files" = "Maiores arquivos";
+"%@ in %@" = "%@ em %@";
+"Show this folder in Finder" = "Mostrar esta pasta no Finder";
+
+/* List */
+"Empty folder" = "Pasta vazia";
+"Nothing taking up space here." = "Nada ocupando espaço aqui.";
+"Open" = "Abrir";
+"Expand" = "Detalhar";
+"Expand Small Files" = "Detalhar arquivos pequenos";
+"Could not expand" = "Não foi possível detalhar";
+"The folder could not be read right now." = "A pasta não pôde ser lida agora.";
+"Show in Finder" = "Mostrar no Finder";
+"Show in Folder" = "Mostrar na pasta";
+"Copy Path" = "Copiar caminho";
+"Small files added together to keep the scan light" = "Arquivos pequenos somados para o scan ficar leve";
+"%@ smaller than 1 MB" = "%@ menores que 1 MB";
+"%@ even smaller" = "%@ ainda menores";
+"No large files" = "Nenhum arquivo grande";
+"There are no files over 1 MB here." = "Não há arquivos acima de 1 MB aqui.";
+
+/* Treemap */
+"Nothing to show" = "Nada para mostrar";
+"This folder takes up no space." = "Esta pasta não ocupa espaço.";
+"small files" = "arquivos pequenos";
+"Other smaller items" = "Outros itens menores";
+"Hover for details · click selects · double-click opens the folder" = "Passe o mouse para ver detalhes · clique seleciona · duplo clique entra na pasta";
+
+/* Status bar and unreadable folders */
+"Nothing selected" = "Nada selecionado";
+"In the Trash this session: %@" = "Na Lixeira nesta sessão: %@";
+"Open Trash" = "Abrir Lixeira";
+"The space is only freed when you empty the Trash" = "O espaço só é liberado quando você esvazia a Lixeira";
+"Folders that could not be read are left out of the totals" = "Pastas que não puderam ser lidas não entram na conta";
+"Folders left out of the totals" = "Pastas que não entraram na conta";
+"macOS protects some folders (Mail, Photos, other apps' data…). For the scan to see everything, give Garbage Collector Full Disk Access and scan again." = "O macOS protege algumas pastas (Mail, Fotos, dados de outros apps…). Para o scan enxergar tudo, dê Acesso Total ao Disco ao Garbage Collector e escaneie de novo.";
+"Showing %@ of %@." = "Mostrando %@ de %@.";
+"Open Privacy Settings…" = "Abrir Ajustes de Privacidade…";
+"Close" = "Fechar";
+"no permission" = "sem permissão";
+"read error" = "erro de leitura";
+"other volume" = "outro volume";
+"cloud only" = "só na nuvem";
+
+/* Trash */
+"Move to Trash" = "Mover para a Lixeira";
+"Move the selection to the Trash (⌘⌫)" = "Mover a seleção para a Lixeira (⌘⌫)";
+"Move “%@” to the Trash?" = "Mover “%@” para a Lixeira?";
+"Move %@ to the Trash?" = "Mover %@ para a Lixeira?";
+"This frees about %@ once the Trash is emptied." = "Isso libera cerca de %@ quando a Lixeira for esvaziada.";
+"Protected, staying where they are: %@." = "Protegidos, ficam onde estão: %@.";
+"These items are protected" = "Esses itens são protegidos";
+"Some items were not moved" = "Alguns itens não foram movidos";
+"Items already removed" = "Itens já removidos";
+"Already gone from disk and removed from the list: %@." = "%@ já não existia no disco e saiu da lista.";
+"Could not move to the Trash." = "Não foi possível mover para a Lixeira.";
+
+/* Why an item cannot go to the Trash */
+"Invalid path." = "Caminho inválido.";
+"It is a top-level folder of the disk." = "É uma pasta de primeiro nível do disco.";
+"It is your home folder (or contains it)." = "É a sua pasta pessoal (ou contém ela).";
+"It is a user's home folder." = "É a pasta pessoal de um usuário.";
+"It is the root of a volume." = "É a raiz de um volume.";
+"It is a system folder." = "É uma pasta do sistema.";
+"It is a structural folder of the system Library. Open it and pick what is inside." = "É uma pasta estrutural da Biblioteca do sistema. Entre nela e escolha o conteúdo.";
+"It is already in the Trash." = "Já está na Lixeira.";
+"It is a standard folder of your home folder. Open it and pick what is inside." = "É uma pasta padrão da sua pasta pessoal. Entre nela e escolha o conteúdo.";
+"It is a structural folder of your Library. Open it and pick what is inside." = "É uma pasta estrutural da sua Biblioteca. Entre nela e escolha o conteúdo.";
+"The folder that held this item no longer exists. Scan again." = "A pasta que continha o item não existe mais. Escaneie de novo.";
+"The path changed since the scan (a folder became a link to somewhere else). Scan again." = "O caminho mudou desde o scan (uma pasta virou atalho para outro lugar). Escaneie de novo.";

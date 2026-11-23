@@ -22,32 +22,32 @@ struct BrowserView: View {
             StatusBar()
         }
         .navigationTitle(model.rootLabel)
-        .navigationSubtitle(model.root.map { "\(Format.bytes($0.size)) em \(Format.files($0.fileCount))" } ?? "")
+        .navigationSubtitle(model.root.map { String(localized: "\(Format.bytes($0.size)) in \(Format.files($0.fileCount))") } ?? "")
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button { model.goUp() } label: { Label("Pasta acima", systemImage: "chevron.up") }
+                Button { model.goUp() } label: { Label("Enclosing Folder", systemImage: "chevron.up") }
                     .disabled(!model.canGoUp)
-                    .help("Pasta acima (⌘↑)")
+                    .help("Enclosing folder (⌘↑)")
             }
             ToolbarItem(placement: .principal) {
-                Picker("Visão", selection: $model.tab) {
-                    Text("Pastas").tag(AppModel.Tab.folders)
-                    Text("Maiores arquivos").tag(AppModel.Tab.largest)
+                Picker("View", selection: $model.tab) {
+                    Text("Folders").tag(AppModel.Tab.folders)
+                    Text("Largest Files").tag(AppModel.Tab.largest)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 Menu {
-                    Button("Pasta pessoal") { model.scanHome() }
-                    Button("Disco inteiro") { model.scanWholeDisk() }
-                    Button("Escolher pasta…") { model.chooseFolderAndScan() }
+                    Button("Home Folder") { model.scanHome() }
+                    Button("Whole Disk") { model.scanWholeDisk() }
+                    Button("Choose Folder…") { model.chooseFolderAndScan() }
                 } label: {
-                    Label("Escanear outro lugar", systemImage: "scope")
+                    Label("Scan Somewhere Else", systemImage: "scope")
                 }
-                .help("Escanear outro lugar")
-                Button { model.rescan() } label: { Label("Escanear de novo", systemImage: "arrow.clockwise") }
-                    .help("Escanear de novo (⌘R)")
+                .help("Scan somewhere else")
+                Button { model.rescan() } label: { Label("Rescan", systemImage: "arrow.clockwise") }
+                    .help("Rescan (⌘R)")
             }
         }
         .alert(
@@ -55,10 +55,10 @@ struct BrowserView: View {
             isPresented: Binding(get: { model.pendingTrash != nil }, set: { if !$0 { model.pendingTrash = nil } }),
             presenting: model.pendingTrash
         ) { request in
-            Button("Mover para a Lixeira", role: .destructive) {
+            Button("Move to Trash", role: .destructive) {
                 Task { await model.performTrash(request) }
             }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: { request in
             Text(trashMessage(request))
         }
@@ -67,24 +67,24 @@ struct BrowserView: View {
 
     private var trashTitle: String {
         guard let request = model.pendingTrash else { return "" }
-        if request.nodes.count == 1 { return "Mover “\(request.nodes[0].name)” para a Lixeira?" }
-        return "Mover \(Format.items(request.nodes.count)) para a Lixeira?"
+        if request.nodes.count == 1 { return String(localized: "Move “\(request.nodes[0].name)” to the Trash?") }
+        return String(localized: "Move \(Format.items(request.nodes.count)) to the Trash?")
     }
 
     private func trashMessage(_ request: AppModel.TrashRequest) -> String {
-        var lines = ["Isso libera cerca de \(Format.bytes(request.totalBytes)) quando a Lixeira for esvaziada."]
+        var lines = [String(localized: "This frees about \(Format.bytes(request.totalBytes)) once the Trash is emptied.")]
         if request.nodes.count > 1 {
             let names = request.nodes.prefix(6).map { "• \($0.name)" }
             lines.append(names.joined(separator: "\n") + (request.nodes.count > 6 ? "\n• …" : ""))
         }
         if !request.blocked.isEmpty {
-            lines.append("Protegidos, ficam onde estão: " + request.blocked.map(\.name).joined(separator: ", ") + ".")
+            lines.append(String(localized: "Protected, staying where they are: \(request.blocked.map(\.name).joined(separator: ", "))."))
         }
         return lines.joined(separator: "\n\n")
     }
 }
 
-/// Caminho da raiz do scan até a pasta atual; cada trecho é clicável.
+/// Path from the scan root to the current folder; every segment is clickable.
 struct BreadcrumbBar: View {
     @Environment(AppModel.self) private var model
 
@@ -110,7 +110,7 @@ struct BreadcrumbBar: View {
             .defaultScrollAnchor(.trailing)
             Spacer(minLength: 0)
             if let current = model.current {
-                Text("\(Format.bytes(current.size)) · \(Format.files(current.fileCount))")
+                Text(verbatim: "\(Format.bytes(current.size)) · \(Format.files(current.fileCount))")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -119,7 +119,7 @@ struct BreadcrumbBar: View {
                     Image(systemName: "arrow.up.forward.app")
                 }
                 .buttonStyle(.borderless)
-                .help("Mostrar esta pasta no Finder")
+                .help("Show this folder in Finder")
             }
         }
         .padding(.horizontal, 12)
@@ -138,40 +138,46 @@ struct StatusBar: View {
         HStack(spacing: 14) {
             if let result = model.result, result.issueCount > 0 {
                 Button { model.showIssues = true } label: {
-                    Label("\(Format.count(result.issueCount)) \(result.issueCount == 1 ? "pasta não lida" : "pastas não lidas")", systemImage: "exclamationmark.triangle")
+                    Label(Self.unreadable(result.issueCount), systemImage: "exclamationmark.triangle")
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.orange)
-                .help("Pastas que não puderam ser lidas não entram na conta")
+                .help("Folders that could not be read are left out of the totals")
             }
             if model.trashedCount > 0 {
                 HStack(spacing: 6) {
-                    Text("Na Lixeira nesta sessão: \(Format.bytes(model.trashedBytes))")
+                    Text(String(localized: "In the Trash this session: \(Format.bytes(model.trashedBytes))"))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
-                    Button("Abrir Lixeira") { SystemLinks.openTrash() }
+                    Button("Open Trash") { SystemLinks.openTrash() }
                         .buttonStyle(.link)
-                        .help("O espaço só é liberado quando você esvazia a Lixeira")
+                        .help("The space is only freed when you empty the Trash")
                 }
             }
             Spacer()
             if model.isTrashing {
                 ProgressView().controlSize(.small)
             }
-            Text(selected.isEmpty ? "Nada selecionado" : "\(Format.items(selected.count)) · \(Format.bytes(bytes))")
+            Text(selected.isEmpty ? String(localized: "Nothing selected") : "\(Format.items(selected.count)) · \(Format.bytes(bytes))")
                 .foregroundStyle(selected.isEmpty ? .tertiary : .primary)
                 .monospacedDigit()
             Button {
                 model.requestTrashOfSelection()
             } label: {
-                Label("Mover para a Lixeira", systemImage: "trash")
+                Label("Move to Trash", systemImage: "trash")
             }
             .disabled(selected.isEmpty || model.isTrashing)
-            .help("Mover a seleção para a Lixeira (⌘⌫)")
+            .help("Move the selection to the Trash (⌘⌫)")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(.bar)
+    }
+
+    private static func unreadable(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "1 unreadable folder")
+            : String(localized: "\(Format.count(count)) unreadable folders")
     }
 }
 
@@ -183,8 +189,8 @@ struct IssuesSheet: View {
         let issues = model.result?.issues ?? []
         let total = model.result?.issueCount ?? 0
         VStack(alignment: .leading, spacing: 12) {
-            Text("Pastas que não entraram na conta").font(.title3.weight(.semibold))
-            Text("O macOS protege algumas pastas (Mail, Fotos, dados de outros apps…). Para o scan enxergar tudo, dê Acesso Total ao Disco ao Garbage Collector e escaneie de novo.")
+            Text("Folders left out of the totals").font(.title3.weight(.semibold))
+            Text("macOS protects some folders (Mail, Photos, other apps' data…). For the scan to see everything, give Garbage Collector Full Disk Access and scan again.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             List(issues) { issue in
@@ -199,14 +205,14 @@ struct IssuesSheet: View {
             }
             .listStyle(.bordered)
             if total > issues.count {
-                Text("Mostrando \(Format.count(issues.count)) de \(Format.count(total)).")
+                Text(String(localized: "Showing \(Format.count(issues.count)) of \(Format.count(total))."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             HStack {
-                Button("Abrir Ajustes de Privacidade…") { SystemLinks.openFullDiskAccessSettings() }
+                Button("Open Privacy Settings…") { SystemLinks.openFullDiskAccessSettings() }
                 Spacer()
-                Button("Fechar") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button("Close") { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -215,10 +221,10 @@ struct IssuesSheet: View {
 
     static func describe(_ kind: FileNode.Issue) -> String {
         switch kind {
-        case .permissionDenied: "sem permissão"
-        case .unreadable: "erro de leitura"
-        case .otherVolume: "outro volume"
-        case .cloudOnly: "só na nuvem"
+        case .permissionDenied: String(localized: "no permission")
+        case .unreadable: String(localized: "read error")
+        case .otherVolume: String(localized: "other volume")
+        case .cloudOnly: String(localized: "cloud only")
         }
     }
 }

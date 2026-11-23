@@ -2,16 +2,16 @@ import AppKit
 import ScanCore
 import SwiftUI
 
-/// Um retângulo já posicionado do treemap.
+/// A treemap rectangle, already laid out.
 struct TreemapCell {
-    /// `nil` para o bloco "outros" (cauda de itens pequenos demais para desenhar um a um).
+    /// `nil` for the "others" block (tail of items too small to draw one by one).
     let node: FileNode?
-    /// Filho direto da pasta atual ao qual este retângulo pertence.
+    /// Direct child of the current folder this rectangle belongs to.
     let top: FileNode?
     let topIndex: Int
     let rect: CGRect
     let depth: Int
-    /// Pasta desenhada como moldura, com o conteúdo por cima.
+    /// Folder drawn as a frame, with its contents on top.
     let isFrame: Bool
     let hasHeader: Bool
     let variant: Int
@@ -37,7 +37,7 @@ enum TreemapLayout {
         topIndex: Int,
         into cells: inout [TreemapCell]
     ) {
-        // Os filhos já vêm ordenados do maior para o menor; os de tamanho zero ficam no fim.
+        // Children arrive sorted largest first; the zero-sized ones are at the end.
         let sized = directory.children.prefix { $0.size > 0 }
         let shown = sized.prefix(maxChildrenPerLevel)
         var weights = shown.map { Double($0.size) }
@@ -73,7 +73,7 @@ enum TreemapLayout {
     }
 }
 
-/// Guarda o layout entre redesenhos: mover o mouse redesenha o canvas, mas não recalcula o treemap.
+/// Keeps the layout between redraws: moving the mouse redraws the canvas but does not recompute the treemap.
 @MainActor
 private final class TreemapCache {
     private var key: Key?
@@ -123,12 +123,12 @@ struct TreemapPanel: View {
                         })
                         .overlay {
                             if cells.isEmpty {
-                                ContentUnavailableView("Nada para mostrar", systemImage: "square.grid.2x2", description: Text("Esta pasta não ocupa espaço."))
+                                ContentUnavailableView("Nothing to show", systemImage: "square.grid.2x2", description: Text("This folder takes up no space."))
                             }
                         }
                 }
             }
-            // O que está sob o mouse aponta para a árvore antiga quando ela muda de pasta ou de conteúdo.
+            // What is under the mouse points at the old tree once the folder or its contents change.
             .onChange(of: revision) { hovered = nil }
             .onChange(of: model.current?.id) { hovered = nil }
             if let directory = model.current {
@@ -146,7 +146,7 @@ struct TreemapPanel: View {
                 context.fill(shape, with: .color(Self.color(for: cell)))
                 Self.drawLabel(for: cell, in: &context)
             }
-            // Realces por cima de tudo: seleção e item sob o mouse (sempre o filho direto da pasta atual).
+            // Highlights on top of everything: selection and hovered item (always the direct child of the current folder).
             for cell in cells where cell.depth == 0 {
                 guard let node = cell.node else { continue }
                 let outline = Path(roundedRect: cell.rect.insetBy(dx: 1.5, dy: 1.5), cornerRadius: 3)
@@ -192,7 +192,7 @@ struct TreemapPanel: View {
             let area = cell.rect.insetBy(dx: 5, dy: 4)
             var clipped = context
             clipped.clip(to: Path(area))
-            let name = node.isAggregate ? "arquivos pequenos" : node.name
+            let name = node.isAggregate ? String(localized: "small files") : node.name
             clipped.draw(
                 Text(name).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.black.opacity(0.8)),
                 at: CGPoint(x: area.minX, y: area.minY),
@@ -207,7 +207,7 @@ struct TreemapPanel: View {
     }
 }
 
-/// Rodapé do treemap: o que está sob o mouse, com o caminho relativo à pasta atual.
+/// Treemap footer: what is under the mouse, with its path relative to the current folder.
 private struct HoverInfo: View {
     let cell: TreemapCell?
     let directory: FileNode
@@ -221,7 +221,7 @@ private struct HoverInfo: View {
                 Spacer(minLength: 8)
                 Text(Format.bytes(size(of: cell))).monospacedDigit().foregroundStyle(.secondary)
             } else {
-                Text("Passe o mouse para ver detalhes · clique seleciona · duplo clique entra na pasta")
+                Text("Hover for details · click selects · double-click opens the folder")
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -239,8 +239,8 @@ private struct HoverInfo: View {
     }
 
     private func description(of cell: TreemapCell) -> String {
-        guard let node = cell.node else { return "Outros itens menores" }
-        // Caminho da pasta atual até o item, sem repetir a pasta atual.
+        guard let node = cell.node else { return String(localized: "Other smaller items") }
+        // Path from the current folder to the item, without repeating the current folder.
         var names: [String] = []
         var cursor: FileNode? = node.isAggregate ? node.parent : node
         while let current = cursor, current !== directory {
@@ -249,7 +249,7 @@ private struct HoverInfo: View {
         }
         var text = names.reversed().joined(separator: " › ")
         if node.isAggregate {
-            text += (text.isEmpty ? "" : " › ") + "\(Format.files(node.fileCount)) pequenos"
+            text += (text.isEmpty ? "" : " › ") + String(localized: "\(Format.files(node.fileCount)) smaller than 1 MB")
         }
         return text
     }

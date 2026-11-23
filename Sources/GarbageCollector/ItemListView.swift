@@ -1,7 +1,7 @@
 import ScanCore
 import SwiftUI
 
-/// Conteúdo da pasta atual, do maior para o menor.
+/// Contents of the current folder, largest first.
 struct ItemListView: View {
     @Environment(AppModel.self) private var model
 
@@ -32,13 +32,13 @@ struct ItemListView: View {
             }
             .overlay {
                 if items.isEmpty {
-                    ContentUnavailableView("Pasta vazia", systemImage: "folder", description: Text("Nada ocupando espaço aqui."))
+                    ContentUnavailableView("Empty folder", systemImage: "folder", description: Text("Nothing taking up space here."))
                 }
             }
         }
     }
 
-    /// Duplo clique / Return: entra na pasta, detalha o agregado ou mostra o arquivo no Finder.
+    /// Double-click / Return: opens the folder, expands the bucket or reveals the file in Finder.
     private func activate(_ node: FileNode) {
         if model.canOpen(node) {
             model.open(node)
@@ -53,13 +53,13 @@ struct ItemListView: View {
     private func contextMenu(for nodes: [FileNode]) -> some View {
         if let node = nodes.first, nodes.count == 1 {
             if model.canOpen(node) {
-                Button("Abrir") { model.open(node) }
+                Button("Open") { model.open(node) }
             }
             if node.kind == .smallFiles {
-                Button("Detalhar arquivos pequenos") { model.expandSmallFiles() }
+                Button("Expand Small Files") { model.expandSmallFiles() }
             }
-            Button("Mostrar no Finder") { SystemLinks.revealInFinder(node.path) }
-            Button("Copiar caminho") {
+            Button("Show in Finder") { SystemLinks.revealInFinder(node.path) }
+            Button("Copy Path") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(model.displayPath(node), forType: .string)
             }
@@ -67,7 +67,7 @@ struct ItemListView: View {
         let trashable = nodes.filter { !$0.isAggregate }
         if !trashable.isEmpty {
             Divider()
-            Button("Mover para a Lixeira", role: .destructive) { model.requestTrash(trashable) }
+            Button("Move to Trash", role: .destructive) { model.requestTrash(trashable) }
         }
     }
 }
@@ -77,7 +77,7 @@ struct ItemRow: View {
     let node: FileNode
     let share: Double
     let color: Color
-    /// Quando preenchido, aparece abaixo do nome (usado em "Maiores arquivos" para mostrar a pasta).
+    /// When set, shown under the name (used by "Largest Files" to show the folder).
     var location: String?
 
     var body: some View {
@@ -93,7 +93,7 @@ struct ItemRow: View {
                         .italic(node.isAggregate)
                     if let badge { Badge(text: badge) }
                     if node.kind == .smallFiles {
-                        Button("Detalhar") { model.expandSmallFiles() }
+                        Button("Expand") { model.expandSmallFiles() }
                             .buttonStyle(.link)
                             .font(.callout)
                     }
@@ -124,13 +124,13 @@ struct ItemRow: View {
                 .opacity(model.canOpen(node) ? 1 : 0)
         }
         .padding(.vertical, 2)
-        .help(node.isAggregate ? "Arquivos pequenos somados para o scan ficar leve" : model.displayPath(node))
+        .help(node.isAggregate ? String(localized: "Small files added together to keep the scan light") : model.displayPath(node))
     }
 
     private var title: String {
         switch node.kind {
-        case .smallFiles: "\(Format.files(node.fileCount)) menores que 1 MB"
-        case .remainder: "\(Format.files(node.fileCount)) ainda menores"
+        case .smallFiles: String(localized: "\(Format.files(node.fileCount)) smaller than 1 MB")
+        case .remainder: String(localized: "\(Format.files(node.fileCount)) even smaller")
         default: node.name
         }
     }
@@ -163,7 +163,7 @@ private struct Badge: View {
     }
 }
 
-/// Barra proporcional à fatia que o item ocupa da pasta atual.
+/// Bar proportional to the share of the current folder the item takes.
 private struct ShareBar: View {
     let share: Double
     let color: Color
@@ -178,7 +178,7 @@ private struct ShareBar: View {
     }
 }
 
-/// Os maiores arquivos de toda a árvore, independente da pasta.
+/// The largest files of the whole tree, whatever folder they are in.
 struct LargestFilesView: View {
     @Environment(AppModel.self) private var model
 
@@ -202,19 +202,19 @@ struct LargestFilesView: View {
         .contextMenu(forSelectionType: FileNode.ID.self) { ids in
             let nodes = files.filter { ids.contains($0.id) }
             if let node = nodes.first, nodes.count == 1 {
-                Button("Mostrar na pasta") { model.showInFolder(node) }
-                Button("Mostrar no Finder") { SystemLinks.revealInFinder(node.path) }
+                Button("Show in Folder") { model.showInFolder(node) }
+                Button("Show in Finder") { SystemLinks.revealInFinder(node.path) }
                 Divider()
             }
             if !nodes.isEmpty {
-                Button("Mover para a Lixeira", role: .destructive) { model.requestTrash(nodes) }
+                Button("Move to Trash", role: .destructive) { model.requestTrash(nodes) }
             }
         } primaryAction: { ids in
             if let node = files.first(where: { ids.contains($0.id) }) { model.showInFolder(node) }
         }
         .overlay {
             if files.isEmpty {
-                ContentUnavailableView("Nenhum arquivo grande", systemImage: "doc", description: Text("Não há arquivos acima de 1 MB aqui."))
+                ContentUnavailableView("No large files", systemImage: "doc", description: Text("There are no files over 1 MB here."))
             }
         }
     }

@@ -1,10 +1,10 @@
 import Darwin
 import Foundation
 
-/// Alterações na árvore depois do scan. Chame sempre do mesmo contexto que lê a árvore.
+/// Changes to the tree after the scan. Always call from the same context that reads the tree.
 public enum TreeEditor {
-    /// Tira o nó da árvore e desconta tamanho e contagem de todos os ancestrais,
-    /// sem precisar escanear de novo.
+    /// Removes the node from the tree and subtracts its size and count from every ancestor,
+    /// without needing to scan again.
     public static func remove(_ node: FileNode) {
         guard let parent = node.parent else { return }
         parent.children.removeAll { $0 === node }
@@ -14,7 +14,7 @@ public enum TreeEditor {
             current.fileCount = max(0, current.fileCount - node.fileCount)
             ancestor = current.parent
         }
-        // Os irmãos continuam ordenados; só os ancestrais mudaram de tamanho entre os irmãos deles.
+        // The siblings are still sorted; only the ancestors changed size among their own siblings.
         ancestor = parent
         while let current = ancestor, let grandparent = current.parent {
             FileNode.sortBySize(&grandparent.children)
@@ -23,12 +23,12 @@ public enum TreeEditor {
         node.parent = nil
     }
 
-    /// Troca o agregado de arquivos pequenos de `directory` pelos `limit` maiores, lidos do disco
-    /// agora. O que não couber continua agregado. Devolve `false` se não havia o que detalhar
-    /// ou se a pasta não pôde ser lida.
+    /// Replaces the small-files aggregate of `directory` with its `limit` largest files, read from
+    /// disk now. Whatever does not fit stays aggregated. Returns `false` if there was nothing to
+    /// expand or if the directory could not be read.
     ///
-    /// O total da pasta não muda: o agregado restante absorve a diferença. Com hardlinks
-    /// (contados uma vez só no scan) a soma dos filhos pode passar um pouco do total da pasta.
+    /// The directory total does not change: the remaining aggregate absorbs the difference. With hardlinks
+    /// (counted only once in the scan) the sum of the children can slightly exceed the directory total.
     @discardableResult
     public static func expandSmallFiles(in directory: FileNode, limit: Int = 1000) -> Bool {
         guard let bucket = directory.children.first(where: { $0.kind == .smallFiles }) else { return false }
@@ -67,7 +67,7 @@ public enum TreeEditor {
         return true
     }
 
-    /// Os `limit` maiores arquivos da subárvore, do maior para o menor.
+    /// The `limit` largest files in the subtree, from largest to smallest.
     public static func largestFiles(under root: FileNode, limit: Int = 200) -> [FileNode] {
         var result: [FileNode] = []
         var smallestKept: Int64 = 0
@@ -75,7 +75,7 @@ public enum TreeEditor {
         while let node = stack.popLast() {
             for child in node.children {
                 if child.kind == .directory {
-                    // Filhos estão ordenados: se a pasta inteira é menor que o corte, nada nela entra.
+                    // Children are sorted: if the whole directory is smaller than the cutoff, nothing in it qualifies.
                     if result.count < limit || child.size > smallestKept { stack.append(child) }
                 } else if !child.isAggregate, result.count < limit || child.size > smallestKept {
                     result.append(child)

@@ -1,12 +1,30 @@
 import Foundation
 
-/// Trava de segurança: decide se um caminho pode ser enviado para a Lixeira pelo app.
-/// A ideia é bloquear as pastas "estruturais" do sistema e do usuário — o conteúdo delas
-/// continua liberado, a pasta em si não.
+/// Safety guard: decides whether the app may send a path to the Trash.
+/// The idea is to block the "structural" folders of the system and of the user — their
+/// contents stay allowed, the folder itself does not.
 public enum TrashGuard {
     public enum Verdict: Equatable, Sendable {
         case allowed
-        case denied(reason: String)
+        case denied(DenialReason)
+    }
+
+    /// Why a path was refused. The app turns each case into a message for the user.
+    public enum DenialReason: Equatable, Sendable {
+        case invalidPath
+        case topLevelFolder
+        case homeOrAncestor
+        case userHome
+        case volumeRoot
+        case systemFolder
+        case systemLibraryFolder
+        case alreadyInTrash
+        case standardHomeFolder
+        case userLibraryFolder
+        /// On-disk check: the folder that held the item is gone.
+        case parentMissing
+        /// On-disk check: the path now resolves somewhere else (a folder became a symlink).
+        case pathChanged
     }
 
     private static let systemPrefixes = [
@@ -28,60 +46,60 @@ public enum TrashGuard {
     public static func evaluate(path rawPath: String, home rawHome: String = NSHomeDirectory()) -> Verdict {
         let path = normalize(rawPath)
         let home = normalize(rawHome)
-        guard path.hasPrefix("/") else { return .denied(reason: "Caminho inválido.") }
+        guard path.hasPrefix("/") else { return .denied(.invalidPath) }
 
         let components = path.split(separator: "/")
         if components.count <= 1 {
-            return .denied(reason: "É uma pasta de primeiro nível do disco.")
+            return .denied(.topLevelFolder)
         }
         if path == home || home.hasPrefix(path + "/") {
-            return .denied(reason: "É a sua pasta pessoal (ou contém ela).")
+            return .denied(.homeOrAncestor)
         }
         if components[0] == "Users", components.count == 2 {
-            return .denied(reason: "É a pasta pessoal de um usuário.")
+            return .denied(.userHome)
         }
         if components[0] == "Volumes", components.count == 2 {
-            return .denied(reason: "É a raiz de um volume.")
+            return .denied(.volumeRoot)
         }
         if exactDenied.contains(path) || systemPrefixes.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) {
-            return .denied(reason: "É uma pasta do sistema.")
+            return .denied(.systemFolder)
         }
         if components[0] == "Library", components.count == 2 {
-            return .denied(reason: "É uma pasta estrutural da Biblioteca do sistema. Entre nela e escolha o conteúdo.")
+            return .denied(.systemLibraryFolder)
         }
 
         if path.hasPrefix(home + "/") {
             let relative = path.dropFirst(home.count + 1).split(separator: "/")
             if relative.first == ".Trash" {
-                return .denied(reason: "Já está na Lixeira.")
+                return .denied(.alreadyInTrash)
             }
             if relative.count == 1, homeFolders.contains(String(relative[0])) {
-                return .denied(reason: "É uma pasta padrão da sua pasta pessoal. Entre nela e escolha o conteúdo.")
+                return .denied(.standardHomeFolder)
             }
             if relative.count == 2, relative[0] == "Library" {
-                return .denied(reason: "É uma pasta estrutural da sua Biblioteca. Entre nela e escolha o conteúdo.")
+                return .denied(.userLibraryFolder)
             }
         }
         return .allowed
     }
 
-    /// Checagem feita logo antes de mover, contra o disco. A árvore é uma foto do scan: se desde
-    /// então alguma pasta do caminho virou um link simbólico, o item que seria movido é outro —
-    /// possivelmente em um lugar que `evaluate` recusaria. Aqui o caminho só passa se a pasta
-    /// que contém o item ainda for o mesmo lugar, e a regra é aplicada ao caminho real.
+    /// Check made right before moving, against the disk. The tree is a snapshot of the scan: if
+    /// a folder in the path has since become a symlink, the item that would be moved is a
+    /// different one — possibly somewhere `evaluate` would refuse. Here the path only passes if
+    /// the folder holding the item is still the same place, and the rules run on the real path.
     ///
-    /// O último componente não é resolvido de propósito: mover um link simbólico para a
-    /// Lixeira move o link, não o destino dele.
+    /// The last component is deliberately not resolved: trashing a symlink moves the link,
+    /// not its target.
     public static func evaluateOnDisk(path: String, home: String = NSHomeDirectory()) -> Verdict {
         let parent = (path as NSString).deletingLastPathComponent
         let name = (path as NSString).lastPathComponent
         guard path.hasPrefix("/"), !name.isEmpty, let resolved = realpath(parent, nil) else {
-            return .denied(reason: "A pasta que continha o item não existe mais. Escaneie de novo.")
+            return .denied(.parentMissing)
         }
         let realParent = String(cString: resolved)
         free(resolved)
         guard VolumePaths.userFacing(realParent) == VolumePaths.userFacing(parent) else {
-            return .denied(reason: "O caminho mudou desde o scan (uma pasta virou atalho para outro lugar). Escaneie de novo.")
+            return .denied(.pathChanged)
         }
         return evaluate(path: realParent.hasSuffix("/") ? realParent + name : realParent + "/" + name, home: home)
     }
@@ -90,15 +108,15 @@ public enum TrashGuard {
 }
 
 public enum VolumePaths {
-    /// Onde o macOS monta o volume de dados. Escanear a partir daqui cobre o disco inteiro
-    /// sem contar nada em dobro (a raiz `/` é outro volume, só de leitura, com atalhos para cá).
+    /// Where macOS mounts the data volume. Scanning from here covers the whole disk without
+    /// counting anything twice (the `/` root is another, read-only volume with firmlinks to here).
     public static let dataVolume = "/System/Volumes/Data"
 
-    /// Remove barras finais, `.`/`..` e o prefixo do volume de dados
-    /// (`/System/Volumes/Data/Users/x` é o mesmo lugar que `/Users/x`).
+    /// Strips trailing slashes, `.`/`..` and the data-volume prefix
+    /// (`/System/Volumes/Data/Users/x` is the same place as `/Users/x`).
     ///
-    /// Não usa `standardizingPath` de propósito: ele troca `/private/tmp` por `/tmp` e não
-    /// queremos que o resultado dependa do que existe no disco.
+    /// Deliberately not `standardizingPath`: it turns `/private/tmp` into `/tmp`, and the
+    /// result must not depend on what exists on disk.
     public static func userFacing(_ path: String) -> String {
         guard path.hasPrefix("/") else { return path }
         var parts: [Substring] = []
