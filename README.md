@@ -80,6 +80,10 @@ raízes de volumes, sua pasta pessoal, as pastas padrão dela (`Documentos`, `Do
 `Biblioteca`…) e o primeiro nível de `~/Library`. O **conteúdo** delas continua liberado.
 As regras estão em `Sources/ScanCore/TrashGuard.swift` e têm teste para cada caso.
 
+A checagem é refeita contra o disco no instante de mover: se desde o scan alguma pasta do
+caminho virou um link simbólico (ou seja, o caminho passou a apontar para outro lugar), o item
+é recusado e o app pede um novo scan.
+
 ## Limitações conhecidas
 
 - **O espaço liberado pode ser menor que o mostrado** quando há hardlinks (ex.: `node_modules` do

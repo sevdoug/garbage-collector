@@ -65,6 +65,27 @@ public enum TrashGuard {
         return .allowed
     }
 
+    /// Checagem feita logo antes de mover, contra o disco. A árvore é uma foto do scan: se desde
+    /// então alguma pasta do caminho virou um link simbólico, o item que seria movido é outro —
+    /// possivelmente em um lugar que `evaluate` recusaria. Aqui o caminho só passa se a pasta
+    /// que contém o item ainda for o mesmo lugar, e a regra é aplicada ao caminho real.
+    ///
+    /// O último componente não é resolvido de propósito: mover um link simbólico para a
+    /// Lixeira move o link, não o destino dele.
+    public static func evaluateOnDisk(path: String, home: String = NSHomeDirectory()) -> Verdict {
+        let parent = (path as NSString).deletingLastPathComponent
+        let name = (path as NSString).lastPathComponent
+        guard path.hasPrefix("/"), !name.isEmpty, let resolved = realpath(parent, nil) else {
+            return .denied(reason: "A pasta que continha o item não existe mais. Escaneie de novo.")
+        }
+        let realParent = String(cString: resolved)
+        free(resolved)
+        guard VolumePaths.userFacing(realParent) == VolumePaths.userFacing(parent) else {
+            return .denied(reason: "O caminho mudou desde o scan (uma pasta virou atalho para outro lugar). Escaneie de novo.")
+        }
+        return evaluate(path: realParent.hasSuffix("/") ? realParent + name : realParent + "/" + name, home: home)
+    }
+
     static func normalize(_ path: String) -> String { VolumePaths.userFacing(path) }
 }
 

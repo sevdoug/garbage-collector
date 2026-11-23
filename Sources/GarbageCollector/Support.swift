@@ -110,10 +110,18 @@ enum Trasher {
     @MainActor
     static func trash(paths: [String]) async -> [Outcome] {
         let existing = paths.filter(exists)
+        // Revalida contra o disco agora: o caminho pode ter passado a apontar para outro lugar
+        // desde o scan. Sobra uma janela mínima entre esta checagem e o `recycle`, que recebe
+        // caminhos e não descritores de arquivo.
+        var refused: [String: String] = [:]
+        for path in existing {
+            if case .denied(let reason) = TrashGuard.evaluateOnDisk(path: path) { refused[path] = reason }
+        }
+        let allowed = existing.filter { refused[$0] == nil }
         var movedPaths: Set<String> = []
         var failure: String?
-        if !existing.isEmpty {
-            let urls = existing.map { URL(fileURLWithPath: $0) }
+        if !allowed.isEmpty {
+            let urls = allowed.map { URL(fileURLWithPath: $0) }
             (movedPaths, failure) = await withCheckedContinuation { continuation in
                 NSWorkspace.shared.recycle(urls) { moved, error in
                     continuation.resume(returning: (Set(moved.keys.map(\.path)), error?.localizedDescription))
@@ -122,6 +130,7 @@ enum Trasher {
         }
         return paths.map { path in
             guard existing.contains(path) else { return .missing }
+            if let reason = refused[path] { return .failed(reason) }
             // A fonte da verdade é o disco: se o item saiu do lugar, foi movido.
             if movedPaths.contains(path) || !exists(path) { return .trashed }
             return .failed(failure ?? "Não foi possível mover para a Lixeira.")
