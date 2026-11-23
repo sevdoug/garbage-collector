@@ -1,139 +1,174 @@
 # Garbage Collector
 
-App de macOS para ver o que está ocupando o disco e mandar o que não presta para a Lixeira.
+**Garbage collection for your disk, not your heap.** A free, native macOS app that shows what
+is taking up your disk and lets you send the junk to the Trash.
 
-- **Lista** da pasta atual, do maior para o menor, com barra proporcional e % da pasta.
-- **Treemap** ao lado: a área de cada bloco é o espaço que ele ocupa; as cores batem com a lista.
-- **Maiores arquivos**: os 200 maiores de toda a árvore, independente da pasta.
-- **Lixeira**: seleciona, confirma, vai para a Lixeira do macOS. Nada é apagado direto.
+![Garbage Collector showing a folder as a size-sorted list next to a treemap](docs/screenshot.jpg)
 
-SwiftUI + SwiftPM, sem dependências. O `.app` tem ~1 MB.
+> **Not that kind of garbage collector.** Nothing here walks a heap or pauses your runtime.
+> This one is mark-and-sweep by hand: *you* mark what is garbage, and it sweeps it into the
+> Trash. It is also fully stop-the-world, in the sense that nothing happens until you say so.
 
-## Rodar
+- **List** of the current folder, largest first, with a proportional bar and the share of the folder.
+- **Treemap** next to it: the area of each block is the space it takes; colors match the list.
+- **Largest Files**: the 200 largest files of the whole tree, whatever folder they are in.
+- **Trash**: select, confirm, and it goes to the macOS Trash. Nothing is deleted directly.
 
-Requer macOS 14+ e Xcode (ou Command Line Tools) com Swift 6.
+SwiftUI + SwiftPM, no dependencies, no network requests, no telemetry. The `.app` is about 1 MB.
+The interface is available in English and Brazilian Portuguese.
+
+## Install
+
+There is no prebuilt download yet: the app is not notarized, so you build it yourself.
+You need macOS 14 or later and Xcode (or the Command Line Tools) with Swift 6.
 
 ```bash
-scripts/bundle.sh            # gera dist/Garbage Collector.app
+git clone https://github.com/sevdoug/garbage-collector.git
+cd garbage-collector
+scripts/bundle.sh --install  # builds and copies the app to /Applications
+```
+
+To build without installing:
+
+```bash
+scripts/bundle.sh            # creates dist/Garbage Collector.app
 open "dist/Garbage Collector.app"
 ```
 
-```bash
-scripts/bundle.sh --install  # gera e copia para /Applications
-```
-
-Para abrir já escaneando uma pasta:
+To open it already scanning a folder:
 
 ```bash
-open "dist/Garbage Collector.app" --args /caminho/da/pasta
+open "dist/Garbage Collector.app" --args /path/to/folder
 ```
 
-Durante o desenvolvimento, `swift run GarbageCollector` também funciona (sem ícone nem Info.plist).
+While developing, `swift run GarbageCollector` also works (no icon, no Info.plist, English only).
 
-## Usar
+### Apple Silicon and Intel
 
-| Ação | Como |
+The code has nothing specific to one architecture, and `swift build` produces a binary for the
+Mac it runs on, so it builds natively on both. Development happens on Apple Silicon with
+macOS 26. An Intel (x86_64) build was run through Rosetta, not on Intel hardware, and macOS 14
+and 15 are supported by the deployment target but untested. Reports are welcome.
+
+## Use
+
+| Action | How |
 | --- | --- |
-| Entrar em uma pasta | duplo clique na lista ou no treemap, ou Return |
-| Voltar | ⌘↑, o botão ⌃ da barra, ou um trecho do caminho no topo |
-| Selecionar vários | ⌘-clique / ⇧-clique na lista; ⌘-clique no treemap |
-| Mover para a Lixeira | ⌘⌫, o botão no rodapé, ou clique direito |
-| Mostrar no Finder / copiar caminho | clique direito |
-| Escanear de novo | ⌘R (volta para a pasta em que você estava) |
-| Escolher outra pasta | ⌘O |
+| Open a folder | double-click in the list or the treemap, or Return |
+| Go back | ⌘↑, the ⌃ button in the toolbar, or a segment of the path at the top |
+| Select several | ⌘-click / ⇧-click in the list; ⌘-click in the treemap |
+| Move to Trash | ⌘⌫, the button in the status bar, or right-click |
+| Show in Finder / copy path | right-click |
+| Rescan | ⌘R (returns to the folder you were in) |
+| Choose another folder | ⌘O |
 
-Em cada pasta, os arquivos menores que 1 MB aparecem somados em uma linha só
-("N arquivos menores que 1 MB"). **Detalhar** lista os 1.000 maiores deles.
+In each folder, files smaller than 1 MB are added up into a single row
+("N files smaller than 1 MB"). **Expand** lists the 1,000 largest of them.
 
-O espaço só volta de verdade quando você **esvazia a Lixeira** — o rodapé mostra quanto já foi
-para lá na sessão e tem um atalho para abri-la.
+The space only really comes back when you **empty the Trash**. The status bar shows how much
+you have sent there in the session and has a shortcut to open it.
 
-## Permissões
+## Permissions
 
-O macOS protege algumas pastas. Sem permissão o app continua funcionando, mas essas pastas ficam
-de fora da conta e aparecem no aviso "N pastas não lidas" do rodapé.
+macOS protects some folders. Without permission the app still works, but those folders are
+left out of the totals and show up in the "N unreadable folders" warning in the status bar.
 
-Para enxergar tudo: **Ajustes do Sistema → Privacidade e Segurança → Acesso Total ao Disco** e
-adicione o Garbage Collector. Depois escaneie de novo.
+To see everything: **System Settings → Privacy & Security → Full Disk Access**, add
+Garbage Collector, then scan again.
 
-O app é assinado ad-hoc (sem certificado de desenvolvedor). O macOS amarra a permissão a essa
-assinatura, então **depois de recompilar pode ser preciso conceder o acesso de novo**.
+The app is ad-hoc signed (no developer certificate). macOS ties the permission to that
+signature, so **after rebuilding you may have to grant access again**.
 
-## Como o tamanho é contado
+## How size is counted
 
-Mesmas regras do `du`, e os totais batem com ele:
+Same rules as `du`, and the totals match it:
 
-- **Tamanho alocado em disco**, não o tamanho lógico. Arquivos esparsos (ex.: `Docker.raw`) e
-  arquivos que só existem no iCloud contam o que realmente ocupam.
-- **Hardlinks contam uma vez só** — o primeiro caminho encontrado leva o tamanho.
-- **Links simbólicos não são seguidos.**
-- **Não atravessa volumes**: discos externos montados dentro da pasta aparecem como "outro volume".
-- **Pastas só na nuvem não são listadas** (listar forçaria o download).
+- **Size allocated on disk**, not the logical size. Sparse files (e.g. `Docker.raw`) and files
+  that only exist in iCloud count what they really take.
+- **Hard links count once**: the first path found gets the size.
+- **Symbolic links are not followed.**
+- **It does not cross volumes**: external disks mounted inside the folder show as "other volume".
+- **Cloud-only folders are not listed** (listing them would force a download).
 
-"Disco inteiro" escaneia o volume de dados (`/System/Volumes/Data`), onde ficam seus arquivos,
-apps e a biblioteca do sistema. O volume do sistema (selado, só leitura) fica de fora.
+"Whole Disk" scans the data volume (`/System/Volumes/Data`), where your files, apps and the
+system library live. The system volume (sealed, read-only) is left out.
 
-## Travas de segurança
+## Safety
 
-O app se recusa a mandar para a Lixeira pastas estruturais: a raiz do disco, pastas do sistema,
-raízes de volumes, sua pasta pessoal, as pastas padrão dela (`Documentos`, `Downloads`,
-`Biblioteca`…) e o primeiro nível de `~/Library`. O **conteúdo** delas continua liberado.
-As regras estão em `Sources/ScanCore/TrashGuard.swift` e têm teste para cada caso.
+- **Nothing is deleted permanently.** The only destructive action is moving items to the
+  Trash, always after a confirmation dialog. The app never empties the Trash.
+- **Structural folders are refused**: the disk root, system folders, volume roots, your home
+  folder, its standard folders (`Documents`, `Downloads`, `Library`…) and the first level of
+  `~/Library`. Their **contents** remain available. The rules live in
+  `Sources/ScanCore/TrashGuard.swift`, with a test for each case.
+- **The check runs again against the disk at the moment of moving.** If a folder in the path
+  has become a symbolic link since the scan (so the path now points somewhere else), the item
+  is refused and the app asks for a new scan.
+- **No network, no telemetry.** The app makes no network requests and stores nothing about
+  your files.
 
-A checagem é refeita contra o disco no instante de mover: se desde o scan alguma pasta do
-caminho virou um link simbólico (ou seja, o caminho passou a apontar para outro lugar), o item
-é recusado e o app pede um novo scan.
+It is still a tool that moves your files: read the confirmation before you click.
 
-## Limitações conhecidas
+## Known limitations
 
-- **O espaço liberado pode ser menor que o mostrado** quando há hardlinks (ex.: `node_modules` do
-  pnpm, que aponta para a store) ou clones APFS (cópias feitas no Finder): o espaço só volta quando
-  some o último caminho que aponta para os dados.
-- **Snapshots locais do Time Machine e espaço "purgável"** não aparecem no scan, então o total
-  pode ser menor que o "usado" que o macOS informa.
-- **A árvore é uma foto do momento do scan.** Mudanças feitas por fora só aparecem ao escanear de
-  novo. Se um item selecionado já não existir, ele só sai da lista.
-- **"Colocar de Volta"**: a Lixeira é acionada pela API que move "do mesmo jeito que o Finder"
-  (`NSWorkspace.recycle`), mas a opção "Colocar de Volta" não foi conferida manualmente.
-- Só macOS. Não esvazia a Lixeira nem apaga em definitivo (de propósito).
+- **The space freed can be smaller than shown** when there are hard links (e.g. pnpm's
+  `node_modules`, which point into the store) or APFS clones (copies made in Finder): the space
+  only comes back when the last path to the data is gone.
+- **Local Time Machine snapshots and "purgeable" space** do not appear in the scan, so the
+  total can be smaller than the "used" figure macOS reports.
+- **The tree is a snapshot of the scan.** Changes made elsewhere only show up after a rescan.
+  If a selected item no longer exists, it just leaves the list.
+- **The on-disk check is not atomic.** A tiny window remains between the check and the move,
+  because the macOS Trash API takes paths, not file descriptors.
+- **"Put Back"**: items are trashed through the API that moves them "the same way Finder does"
+  (`NSWorkspace.recycle`), but the Trash's "Put Back" option has not been verified by hand.
+- macOS only. It does not empty the Trash or delete permanently (on purpose).
 
-## Código
+## Code
 
 ```
-Sources/ScanCore/          lógica pura, sem UI
-  Scanner.swift            scan paralelo (readdir + fstatat), agregação e progresso
-  DirectoryReader.swift    leitura de baixo nível de uma pasta
-  FileNode.swift           nó da árvore
-  TreeEditor.swift         remover nó, detalhar arquivos pequenos, maiores arquivos
-  Treemap.swift            layout "squarified"
-  TrashGuard.swift         o que pode ou não ir para a Lixeira
-Sources/GarbageCollector/  app SwiftUI
-  AppModel.swift           estado: scan, navegação, seleção, lixeira
-  BrowserView.swift        janela principal, caminho, rodapé, avisos
-  ItemListView.swift       lista e "Maiores arquivos"
+Sources/ScanCore/          pure logic, no UI
+  Scanner.swift            parallel scan (readdir + fstatat), aggregation and progress
+  DirectoryReader.swift    low-level reading of one directory
+  FileNode.swift           tree node
+  TreeEditor.swift         remove a node, expand small files, largest files
+  Treemap.swift            "squarified" layout
+  TrashGuard.swift         what may and may not go to the Trash
+Sources/GarbageCollector/  SwiftUI app
+  AppModel.swift           state: scan, navigation, selection, trash
+  BrowserView.swift        main window, path bar, status bar, alerts
+  ItemListView.swift       list and "Largest Files"
   TreemapView.swift        treemap (Canvas)
-scripts/bundle.sh          monta o .app
-scripts/make-icon.sh       regera Resources/AppIcon.icns
+Resources/*.lproj          translations (the strings in the code are English)
+scripts/bundle.sh          assembles the .app
+scripts/make-icon.sh       regenerates Resources/AppIcon.icns
 ```
 
-## Testes
+To add a language, copy `Resources/pt-BR.lproj`, translate the right-hand side of each line,
+and add the language code to `CFBundleLocalizations` in `scripts/bundle.sh`.
+
+## Tests
 
 ```bash
 swift test
 ```
 
-Os testes criam pastas temporárias com os casos difíceis (arquivo esparso, hardlink, link
-simbólico em loop, pasta sem permissão) e comparam os totais com o `du -sk`.
+The tests create temporary folders with the hard cases (sparse file, hard link, symlink loop,
+folder without permission) and compare the totals against `du -sk`.
 
-Para medir tempo e memória em uma pasta real (somente leitura):
+To measure time and memory on a real folder (read-only):
 
 ```bash
 GC_BENCH_PATH=~/Library swift test -c release -Xswiftc -enable-testing --filter benchmark
 ```
 
-Referência (MacBook com Apple Silicon, cache frio):
+Reference (Apple Silicon MacBook, cold cache):
 
-| Alvo | Arquivos | Tamanho | Tempo | Pico de memória |
+| Target | Files | Size | Time | Peak memory |
 | --- | --- | --- | --- | --- |
-| `~/Library` | 1,26 milhão | 149 GiB | 12,5 s | 80 MiB |
-| Disco inteiro (`/System/Volumes/Data`) | 4,4 milhões | 388 GiB | 29 s | 213 MiB |
+| `~/Library` | 1.26 million | 149 GiB | 12.5 s | 80 MiB |
+| Whole disk (`/System/Volumes/Data`) | 4.4 million | 388 GiB | 29 s | 213 MiB |
+
+## License
+
+[MIT](LICENSE)
