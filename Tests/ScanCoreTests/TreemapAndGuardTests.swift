@@ -116,6 +116,16 @@ import Testing
         #expect(TrashGuard.evaluateOnDisk(path: fx.path("a"), home: home) == .allowed)
     }
 
+    /// A "Whole Disk" scan produces paths under the data volume, which is the same place.
+    @Test func onDiskAllowsPathsSeenThroughTheDataVolume() throws {
+        let fx = try Fixture()
+        try fx.writeFile("a/file.bin", bytes: 10)
+        let viaDataVolume = VolumePaths.dataVolume + fx.path("a/file.bin")
+        try #require(FileManager.default.fileExists(atPath: viaDataVolume))
+
+        #expect(TrashGuard.evaluateOnDisk(path: viaDataVolume, home: home) == .allowed)
+    }
+
     /// After the scan, folder "a" is replaced by a link to somewhere else: "a/file.bin" is now
     /// a different file, and moving it would delete something the user never saw.
     @Test func onDiskRefusesWhenAParentBecameASymlink() throws {
